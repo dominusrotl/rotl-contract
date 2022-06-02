@@ -17,12 +17,12 @@ contract ROTLMint is Ownable, Pausable {
         uint256 _onceMaxCount;
         uint256 _addressMaxCount;
         uint256 _startBlock;
+        bytes32 _merkleRoot;
 
         mapping (address => uint256) _minted;
     }
 
     event SetAddress(address nft);
-    event SetMerkleRoot(bytes32 root);
     event SetRound(uint256 round);
     event SetRoundInfo(
         uint256 round, 
@@ -30,23 +30,18 @@ contract ROTLMint is Ownable, Pausable {
         uint256 maxCount, 
         uint256 onceMaxCount,
         uint256 addressMaxCount,
-        uint256 startBlock
+        uint256 startBlock,
+        bytes32 merkleRoot
     );
 
     ROTL private _nft;
 
-    bytes32 private _merkleRoot;
     uint256 private _currentRound;
     mapping (uint256 => Round) private _round;
 
     function setAddress(address nft) external onlyOwner {
         _nft = ROTL(nft);
         emit SetAddress(nft);
-    }
-
-    function setMerkleRoot(bytes32 root) external onlyOwner {
-        _merkleRoot = root;
-        emit SetMerkleRoot(root);
     }
 
     function setRound(
@@ -62,7 +57,8 @@ contract ROTLMint is Ownable, Pausable {
         uint256 maxCount, 
         uint256 onceMaxCount,
         uint256 addressMaxCount,
-        uint256 startBlock
+        uint256 startBlock,
+        bytes32 merkleRoot
     ) external onlyOwner {
         Round storage v = _round[round];
         v._price = price;
@@ -70,7 +66,9 @@ contract ROTLMint is Ownable, Pausable {
         v._onceMaxCount = onceMaxCount;
         v._addressMaxCount = addressMaxCount;
         v._startBlock = startBlock;
-        emit SetRoundInfo(round, price, maxCount, onceMaxCount, addressMaxCount, startBlock);
+        v._merkleRoot = merkleRoot;
+        
+        emit SetRoundInfo(round, price, maxCount, onceMaxCount, addressMaxCount, startBlock, merkleRoot);
     }
 
     function pause() external onlyOwner {
@@ -122,10 +120,12 @@ contract ROTLMint is Ownable, Pausable {
         require (msg.value == info._price * count, "require msg.value == price * count");
         // check block
         require (info._startBlock <= block.number, "require info._startBlock <= block.number");
-        if (round == 1) {
+        // check merkle root
+        if (info._merkleRoot != "") {
             bytes32 leaf = keccak256(abi.encodePacked(msg.sender));
-            require (MerkleProof.verify(merkleProof, _merkleRoot, leaf), "invalid merkle proof");
-        } 
+            require (MerkleProof.verify(merkleProof, info._merkleRoot, leaf), "invalid merkle proof");
+        }
+
         // check address max count.
         if (0 < info._addressMaxCount) {
             info._minted[msg.sender] = info._minted[msg.sender].add(count);

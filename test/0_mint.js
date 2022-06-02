@@ -5,23 +5,36 @@ const assert = require("assert");
 const keccak256 = require("keccak256");
 const { default: MerkleTree } = require("merkletreejs");
 const tassert = require("truffle-assertions");
+
 const Web3 = require('web3');
 const web3 = new Web3('https://rinkeby.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161');
 
-const rounds = [
+let rounds = [
   {
-    price: 1,
+    price: 7,
     maxCount: 3,
     onceMaxCount: 2,
     addressMaxCount: 2,
-    startBlock: 0
+    startBlock: 0,
+    merkleRoot: '0x0000000000000000000000000000000000000000000000000000000000000000',
+    merkleTree: null
   },
   {
-    price: 2,
+    price: 8,
     maxCount: 10, // 3 + 7 = 10
     onceMaxCount: 3,
     addressMaxCount: 3,
-    startBlock: 0
+    startBlock: 0,
+    merkleRoot: '0x0000000000000000000000000000000000000000000000000000000000000000',
+    merkleTree: null
+  },
+  {
+    price: 10,
+    maxCount: 15, // 3 + 7 + 5 = 15
+    onceMaxCount: 3,
+    addressMaxCount: 3,
+    startBlock: 0,
+    merkleRoot: '0x0000000000000000000000000000000000000000000000000000000000000000'
   }
 ]
 
@@ -34,18 +47,25 @@ contract("Mint", function (accounts) {
   const admin = accounts[0];
   console.log(`admin: ${admin}`);
 
-  // add whitelist. 1~4 account
-  for (let i = 1; i < 4; ++i) {
-    whitelist.push(accounts[i]);
-    console.log(`whitelist ${i}: ${accounts[i]}`);
-  }
+  // add whitelist. 1~3 account
+  whitelist.push(accounts[1]);
+  whitelist.push(accounts[2]);
 
-  const leafs = whitelist.map(addr => keccak256(addr));
-  const merkletree = new MerkleTree(leafs, keccak256, { sortPairs: true });
-  const rootHash = merkletree.getRoot();
+  let leafs = whitelist.map(addr => keccak256(addr));
+  rounds[0].merkleTree = new MerkleTree(leafs, keccak256, { sortPairs: true });
+  rounds[0].merkleRoot = rounds[0].merkleTree.getRoot();
+  console.log(`round 1: merkleTree: ${rounds[0].merkleTree}`);
+  console.log(`round 1: rootHash: ${rounds[0].merkleRoot.toString('hex')}\n\n`);
 
-  console.log(`merkleTree: ${merkletree}`);
-  console.log(`rootHash: ${rootHash.toString('hex')}`);
+  whitelist.push(accounts[3]);
+  whitelist.push(accounts[4]);
+
+  leafs = whitelist.map(addr => keccak256(addr));
+  rounds[1].merkleTree = new MerkleTree(leafs, keccak256, { sortPairs: true });
+  rounds[1].merkleRoot = rounds[1].merkleTree.getRoot();
+  console.log(`round 2: merkleTree: ${rounds[1].merkleTree}`);
+  console.log(`round 2: rootHash: ${rounds[1].merkleRoot.toString('hex')}\n\n`);
+
 
   it("deploy", async () => {
     nftContract = await nft.deployed();
@@ -77,6 +97,7 @@ contract("Mint", function (accounts) {
         rounds[i].onceMaxCount,
         rounds[i].addressMaxCount,
         rounds[i].startBlock,
+        rounds[i].merkleRoot
       );
     }
   });
@@ -93,28 +114,22 @@ contract("Mint", function (accounts) {
 
   it("mint round 1 => fails. has not whitelist", async () => {
     await tassert.fails(
-      mintContract.mint(1, 1, merkletree.getHexProof(keccak256(whitelist[0])), {
-        from: whitelist[0],
+      mintContract.mint(1, 1, rounds[0].merkleTree.getHexProof(keccak256(whitelist[3])), {
+        from: whitelist[3],
         value: rounds[0].price,
       })
     );
   });
 
-  it("setMerkleRoot", async () => {
-    await mintContract.setMerkleRoot(
-      rootHash
-    );
-  });
-
   it("mint round 1 => success. wl[0] has whitelist", async () => {
-    await mintContract.mint(1, 1, merkletree.getHexProof(keccak256(whitelist[0])), {
+    await mintContract.mint(1, 1, rounds[0].merkleTree.getHexProof(keccak256(whitelist[0])), {
       from: whitelist[0],
       value: rounds[0].price,
     });
   });
 
   it("mint round 1 => success. wl[1] has whitelist", async () => {
-    await mintContract.mint(1, 1, merkletree.getHexProof(keccak256(whitelist[1])), {
+    await mintContract.mint(1, 1, rounds[0].merkleTree.getHexProof(keccak256(whitelist[1])), {
       from: whitelist[1],
       value: rounds[0].price,
     });
@@ -126,36 +141,36 @@ contract("Mint", function (accounts) {
     assert(remain.toString() == rounds[0].maxCount - 2);
   });
 
-  it("mint round 1 => fail. account[4] has not whitelist", async () => {
+  it("mint round 1 => fail. wl[2] has not whitelist", async () => {
     await tassert.fails(
-      mintContract.mint(1, 1, merkletree.getHexProof(keccak256(accounts[4])), {
-        from: accounts[4],
-        value: rounds[0].price,
-      })
-    );
-  });
-
-  it("mint round 1 => fail. account[4] has not whitelist & use wl[1] proof", async () => {
-    await tassert.fails(
-      mintContract.mint(1, 1, merkletree.getHexProof(keccak256(whitelist[1])), {
-        from: accounts[4],
-        value: rounds[0].price,
-      })
-    );
-  });
-
-  it("mint round 1 => fail. wl[2] more than remain", async () => {
-    await tassert.fails(
-      mintContract.mint(1, 2, merkletree.getHexProof(keccak256(whitelist[2])), {
+      mintContract.mint(1, 1, rounds[0].merkleTree.getHexProof(keccak256(whitelist[2])), {
         from: whitelist[2],
+        value: rounds[0].price,
+      })
+    );
+  });
+
+  it("mint round 1 => fail. wl[2] has not whitelist & use wl[1] proof", async () => {
+    await tassert.fails(
+      mintContract.mint(1, 1, rounds[0].merkleTree.getHexProof(keccak256(whitelist[1])), {
+        from: whitelist[2],
+        value: rounds[0].price,
+      })
+    );
+  });
+
+  it("mint round 1 => fail. wl[1] more than remain", async () => {
+    await tassert.fails(
+      mintContract.mint(1, 2, rounds[0].merkleTree.getHexProof(keccak256(whitelist[1])), {
+        from: whitelist[1],
         value: rounds[0].price * 2,
       })
     );
   });
 
-  it("mint round 1 => success. wl[2] has whitelist", async () => {
-    await mintContract.mint(1, 1, merkletree.getHexProof(keccak256(whitelist[2])), {
-      from: whitelist[2],
+  it("mint round 1 => success. wl[1] has whitelist", async () => {
+    await mintContract.mint(1, 1, rounds[0].merkleTree.getHexProof(keccak256(whitelist[1])), {
+      from: whitelist[1],
       value: rounds[0].price,
     });
   });
@@ -176,24 +191,24 @@ contract("Mint", function (accounts) {
     assert(remain.toString() == rounds[1].maxCount - rounds[0].maxCount);
   });
 
-  it("mint round 2 => success. account[4] has not whitelist", async () => {
-    await mintContract.mint(2, 1, merkletree.getHexProof(keccak256(accounts[4])), {
-      from: accounts[4],
+  it("mint round 2 => success. wl[3] has not whitelist", async () => {
+    await mintContract.mint(2, 1, rounds[1].merkleTree.getHexProof(keccak256(whitelist[3])), {
+      from: whitelist[3],
       value: rounds[1].price,
     });
   });
 
-  it("mint round 2 => fail. account[4] more than address max count", async () => {
+  it("mint round 2 => fail. wl[43] more than address max count", async () => {
     await tassert.fails(
-      mintContract.mint(2, rounds[1].onceMaxCount + 1, merkletree.getHexProof(keccak256(accounts[4])), {
-        from: accounts[4],
+      mintContract.mint(2, rounds[1].onceMaxCount + 1, rounds[1].merkleTree.getHexProof(keccak256(whitelist[3])), {
+        from: whitelist[3],
         value: rounds[1].price * rounds[1].onceMaxCount + 1,
       }));
   });
 
-  it("mint round 2 => success. account[4] address max count", async () => {
-    await mintContract.mint(2, rounds[1].addressMaxCount - 1, merkletree.getHexProof(keccak256(accounts[4])), {
-      from: accounts[4],
+  it("mint round 2 => success. wl[3] address max count", async () => {
+    await mintContract.mint(2, rounds[1].addressMaxCount - 1, rounds[1].merkleTree.getHexProof(keccak256(whitelist[3])), {
+      from: whitelist[3],
       value: rounds[1].price * (rounds[1].addressMaxCount - 1),
     });
   });
@@ -206,7 +221,7 @@ contract("Mint", function (accounts) {
 
   it("mint round 2 => fail. wl[1] more than once max count", async () => {
     await tassert.fails(
-      mintContract.mint(2, rounds[1].onceMaxCount + 1, merkletree.getHexProof(keccak256(whitelist[1])), {
+      mintContract.mint(2, rounds[1].onceMaxCount + 1, rounds[1].merkleTree.getHexProof(keccak256(whitelist[1])), {
         from: whitelist[1],
         value: rounds[1].price * (rounds[1].onceMaxCount + 1),
       }));
@@ -214,14 +229,14 @@ contract("Mint", function (accounts) {
 
   it("mint round 2 => fail. wl[1] less than price", async () => {
     await tassert.fails(
-      mintContract.mint(2, 1, merkletree.getHexProof(keccak256(whitelist[1])), {
+      mintContract.mint(2, 1, rounds[1].merkleTree.getHexProof(keccak256(whitelist[1])), {
         from: whitelist[1],
         value: rounds[0].price,
       }));
   });
 
   it("mint round 2 => success. wl[1] address max count", async () => {
-    await mintContract.mint(2, rounds[1].addressMaxCount, merkletree.getHexProof(keccak256(whitelist[1])), {
+    await mintContract.mint(2, rounds[1].addressMaxCount, rounds[1].merkleTree.getHexProof(keccak256(whitelist[1])), {
       from: whitelist[1],
       value: rounds[1].price * (rounds[1].addressMaxCount),
     });
@@ -235,7 +250,7 @@ contract("Mint", function (accounts) {
 
   it("mint round 2 => fail. wl[2] more than remain", async () => {
     await tassert.fails(
-      mintContract.mint(2, rounds[1].addressMaxCount, merkletree.getHexProof(keccak256(whitelist[2])), {
+      mintContract.mint(2, rounds[1].addressMaxCount, rounds[1].merkleTree.getHexProof(keccak256(whitelist[2])), {
         from: whitelist[2],
         value: rounds[1].price * (rounds[1].addressMaxCount),
       })
@@ -243,7 +258,7 @@ contract("Mint", function (accounts) {
   });
 
   it("mint round 2 => success. wl[2] remain", async () => {
-    await mintContract.mint(2, 1, merkletree.getHexProof(keccak256(whitelist[2])), {
+    await mintContract.mint(2, 1, rounds[1].merkleTree.getHexProof(keccak256(whitelist[2])), {
       from: whitelist[2],
       value: rounds[1].price,
     });
@@ -257,7 +272,7 @@ contract("Mint", function (accounts) {
 
   it("mint round 2 => fail. wl[2] sold out", async () => {
     await tassert.fails(
-      mintContract.mint(2, 1, merkletree.getHexProof(keccak256(whitelist[2])), {
+      mintContract.mint(2, 1, rounds[1].merkleTree.getHexProof(keccak256(whitelist[2])), {
         from: whitelist[2],
         value: rounds[1].price,
       })
@@ -269,7 +284,7 @@ contract("Mint", function (accounts) {
   });
 
   it("withdraw => fail. is not admin", async () => {
-    const before = await web3.eth.getBalance(mintContract.address);
+    const before = await caver.klay.getBalance(mintContract.address);
     console.log(`mint contract before balance: ${before}`);
     await tassert.fails(
       mintContract.withdraw(admin, before, {
@@ -279,12 +294,12 @@ contract("Mint", function (accounts) {
   });
 
   it("withdraw => success. is admin", async () => {
-    const before = await web3.eth.getBalance(mintContract.address);
+    const before = await caver.klay.getBalance(mintContract.address);
     console.log(`mint contract before balance: ${before}`);
     await mintContract.withdraw(admin, before, {
       from: admin
     });
-    const after = await web3.eth.getBalance(mintContract.address);
+    const after = await caver.klay.getBalance(mintContract.address);
     console.log(`mint contract after balance: ${after}`);
   });
 
