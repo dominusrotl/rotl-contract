@@ -112,6 +112,10 @@ contract ROTLMint is Ownable, Pausable {
         return _currentRound;
     }
 
+    function getMintedCount(uint256 round, address target) external view returns (uint256) {
+        return _round[round]._minted[target];
+    }
+
     function mint(uint256 round, uint256 count, bytes32[] calldata merkleProof) external payable whenNotPaused {
         // check round
         require (_currentRound == round, "require _currentRound == round");
