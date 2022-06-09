@@ -144,7 +144,7 @@ contract ROTLMint is Ownable, Pausable {
         require (0 < count, "require 0 < count");
         require (count <= info._onceMaxCount, "require count <= _onceMaxCount");
         require (count <= __getRemainCount(), "require count <= __getRemainCount()");
-        _nft.mint(msg.sender, count);
+        _nft.mint(1, msg.sender, count);
     }
 
     function withdraw(address payable to, uint256 value) external onlyOwner {

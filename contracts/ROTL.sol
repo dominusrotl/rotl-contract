@@ -6,8 +6,11 @@ import "./ERC721A.sol";
 import "./extensions/ERC721ABurnable.sol";
 import "./extensions/ERC721AQueryable.sol";
 import "./access/AccessControlEnumerable.sol";
+import "./utils/math/SafeMath.sol";
 
 contract ROTL is AccessControlEnumerable, ERC721A, ERC721ABurnable, ERC721AQueryable {
+    using SafeMath for uint256;
+
     event SetBaseTokenURI(string uri);
 
     string private _baseTokenURI;
@@ -17,7 +20,38 @@ contract ROTL is AccessControlEnumerable, ERC721A, ERC721ABurnable, ERC721AQuery
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
     }
 
-    function mint(address to, uint256 quantity) external payable onlyRole(MINTER_ROLE) {
+    function getFaction(uint256 id) external pure returns (uint256) {
+        if (id < 5000) {
+            return 1;
+        } else if (id < 10000) {
+            return 2;
+        } else if (id < 15000) {
+            return 3;
+        } else if (id < 25000) {
+            return 4;
+        } else if (id < 35000) {
+            return 5;
+        }
+        return 0;
+    }
+
+    function mint(uint256 faction, address to, uint256 quantity) external onlyRole(MINTER_ROLE) {
+        if (faction == 1) {
+            // darkstorm bringers
+            require (totalSupply().add(quantity) <= 5, "totalSupply().add(quantity) <= 5000");
+        } else if (faction == 2) {
+            // righteous faction
+            require (totalSupply().add(quantity) <= 10, "totalSupply().add(quantity) <= 10000");
+        } else if (faction == 3) {
+            // cult faction
+            require (totalSupply().add(quantity) <= 15, "totalSupply().add(quantity) <= 15000");
+        } else if (faction == 4) {
+            // the four outworld Hordes
+            require (totalSupply().add(quantity) <= 25, "totalSupply().add(quantity) <= 25000");
+        } else {
+            // sanctuary of the sword
+            require (totalSupply().add(quantity) <= 35, "totalSupply().add(quantity) <= 35000");
+        }
         // _safeMint's second argument now takes in a quantity, not a tokenId.
         _safeMint(to, quantity);
     }
