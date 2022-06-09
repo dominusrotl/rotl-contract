@@ -38,19 +38,19 @@ contract ROTL is AccessControlEnumerable, ERC721A, ERC721ABurnable, ERC721AQuery
     function mint(uint256 faction, address to, uint256 quantity) external onlyRole(MINTER_ROLE) {
         if (faction == 1) {
             // darkstorm bringers
-            require (totalSupply().add(quantity) <= 5, "totalSupply().add(quantity) <= 5000");
+            require (totalSupply().add(quantity) <= 5000, "totalSupply().add(quantity) <= 5000");
         } else if (faction == 2) {
             // righteous faction
-            require (totalSupply().add(quantity) <= 10, "totalSupply().add(quantity) <= 10000");
+            require (totalSupply().add(quantity) <= 10000, "totalSupply().add(quantity) <= 10000");
         } else if (faction == 3) {
             // cult faction
-            require (totalSupply().add(quantity) <= 15, "totalSupply().add(quantity) <= 15000");
+            require (totalSupply().add(quantity) <= 15000, "totalSupply().add(quantity) <= 15000");
         } else if (faction == 4) {
             // the four outworld Hordes
-            require (totalSupply().add(quantity) <= 25, "totalSupply().add(quantity) <= 25000");
+            require (totalSupply().add(quantity) <= 25000, "totalSupply().add(quantity) <= 25000");
         } else {
             // sanctuary of the sword
-            require (totalSupply().add(quantity) <= 35, "totalSupply().add(quantity) <= 35000");
+            require (totalSupply().add(quantity) <= 35000, "totalSupply().add(quantity) <= 35000");
         }
         // _safeMint's second argument now takes in a quantity, not a tokenId.
         _safeMint(to, quantity);
