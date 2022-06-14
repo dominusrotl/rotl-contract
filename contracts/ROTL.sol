@@ -6,9 +6,10 @@ import "./ERC721A.sol";
 import "./extensions/ERC721ABurnable.sol";
 import "./extensions/ERC721AQueryable.sol";
 import "./access/AccessControlEnumerable.sol";
+import "./access/Ownable.sol";
 import "./utils/math/SafeMath.sol";
 
-contract ROTL is AccessControlEnumerable, ERC721A, ERC721ABurnable, ERC721AQueryable {
+contract ROTL is AccessControlEnumerable, Ownable, ERC721A, ERC721ABurnable, ERC721AQueryable {
     using SafeMath for uint256;
 
     event SetBaseTokenURI(string uri);
